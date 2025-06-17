@@ -8,10 +8,18 @@ interface ExpenseCategory {
 
 interface ExpenseSummary {
   id: number;
-  expenseCategory: ExpenseCategory;
+  category: ExpenseCategory;
   year: number;
   month: number;
   amount: number;
+}
+
+interface ExpenseDetail {
+  id: number;
+  description: string;
+  amount: number;
+  date: string;
+  category: ExpenseCategory;
 }
 
 const Menu: React.FC = () => {
@@ -26,6 +34,9 @@ const Menu: React.FC = () => {
     amount: '',
   });
   const [adding, setAdding] = useState(false);
+  const [details, setDetails] = useState<ExpenseDetail[] | null>(null);
+  const [detailsTitle, setDetailsTitle] = useState('');
+  const [showCategories, setShowCategories] = useState(false);
 
   useEffect(() => {
     // Obtener categorías al cargar el componente
@@ -52,6 +63,7 @@ const Menu: React.FC = () => {
     setLoading(true);
     setError('');
     setExpenses(null);
+    setDetails(null);
     try {
       const token = localStorage.getItem('token');
       const response = await axios.get<ExpenseSummary[]>(
@@ -65,6 +77,30 @@ const Menu: React.FC = () => {
       setExpenses(response.data);
     } catch (err: any) {
       setError(err.response?.data?.message || err.message || 'Error fetching expenses');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchExpenseDetails = async (categoryId: number, year: number, month: number, categoryName: string) => {
+    setLoading(true);
+    setError('');
+    setDetails(null);
+    setDetailsTitle('');
+    try {
+      const token = localStorage.getItem('token');
+      const response = await axios.get<ExpenseDetail[]>(
+        `http://198.211.105.95:8080/expenses/detail?year=${year}&month=${month}&categoryId=${categoryId}`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+      setDetails(response.data);
+      setDetailsTitle(`${categoryName} - ${month}/${year}`);
+    } catch (err: any) {
+      setError(err.response?.data?.message || err.message || 'Error fetching expense details');
     } finally {
       setLoading(false);
     }
@@ -134,7 +170,21 @@ const Menu: React.FC = () => {
         <button onClick={fetchExpenses} style={{ padding: '10px 20px', background: '#007bff', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer' }}>
           Ver gastos
         </button>
+        <button onClick={() => setShowCategories((v) => !v)} style={{ padding: '10px 20px', background: '#6c757d', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer' }}>
+          {showCategories ? 'Ocultar categorías' : 'Ver categorías'}
+        </button>
       </div>
+      {/* Lista de categorías */}
+      {showCategories && (
+        <div style={{ marginBottom: 24 }}>
+          <h3>Categorías disponibles</h3>
+          <ul>
+            {categories.map((cat) => (
+              <li key={cat.id}>{cat.name} (ID: {cat.id})</li>
+            ))}
+          </ul>
+        </div>
+      )}
       {/* Formulario para añadir gasto */}
       <form onSubmit={handleAddExpense} style={{ display: 'flex', gap: 8, marginBottom: 24, alignItems: 'center' }}>
         <select
@@ -204,7 +254,7 @@ const Menu: React.FC = () => {
             {expenses.map((exp) => (
               <tr key={exp.id}>
                 <td style={{ border: '1px solid #ccc', padding: 8 }}>{exp.id}</td>
-                <td style={{ border: '1px solid #ccc', padding: 8 }}>{exp.expenseCategory.name}</td>
+                <td style={{ border: '1px solid #ccc', padding: 8 }}>{(exp.category || exp.expenseCategory)?.name}</td>
                 <td style={{ border: '1px solid #ccc', padding: 8 }}>{exp.year}</td>
                 <td style={{ border: '1px solid #ccc', padding: 8 }}>{exp.month}</td>
                 <td style={{ border: '1px solid #ccc', padding: 8 }}>{exp.amount.toFixed(2)}</td>
@@ -212,11 +262,42 @@ const Menu: React.FC = () => {
                   <button onClick={() => handleDeleteExpense(exp.id)} style={{ padding: '6px 12px', background: '#dc3545', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer' }}>
                     Borrar
                   </button>
+                  <button onClick={() => fetchExpenseDetails((exp.category || exp.expenseCategory).id, exp.year, exp.month, (exp.category || exp.expenseCategory).name)} style={{ marginLeft: 8, padding: '6px 12px', background: '#007bff', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer' }}>
+                    Ver detalles
+                  </button>
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
+      )}
+      {/* Tabla de detalles de gastos individuales */}
+      {details && (
+        <div style={{ marginTop: 32 }}>
+          <h3>Detalles de gastos: {detailsTitle}</h3>
+          <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: 8 }}>
+            <thead>
+              <tr>
+                <th style={{ border: '1px solid #ccc', padding: 8 }}>ID</th>
+                <th style={{ border: '1px solid #ccc', padding: 8 }}>Descripción</th>
+                <th style={{ border: '1px solid #ccc', padding: 8 }}>Monto</th>
+                <th style={{ border: '1px solid #ccc', padding: 8 }}>Fecha</th>
+                <th style={{ border: '1px solid #ccc', padding: 8 }}>Categoría</th>
+              </tr>
+            </thead>
+            <tbody>
+              {details.map((d) => (
+                <tr key={d.id}>
+                  <td style={{ border: '1px solid #ccc', padding: 8 }}>{d.id}</td>
+                  <td style={{ border: '1px solid #ccc', padding: 8 }}>{d.description || '-'}</td>
+                  <td style={{ border: '1px solid #ccc', padding: 8 }}>{d.amount.toFixed(2)}</td>
+                  <td style={{ border: '1px solid #ccc', padding: 8 }}>{d.date ? new Date(d.date).toLocaleDateString() : '-'}</td>
+                  <td style={{ border: '1px solid #ccc', padding: 8 }}>{d.category?.name || '-'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
     </div>
   );
