@@ -37,6 +37,8 @@ const Menu: React.FC = () => {
   const [details, setDetails] = useState<ExpenseDetail[] | null>(null);
   const [detailsTitle, setDetailsTitle] = useState('');
   const [showCategories, setShowCategories] = useState(false);
+  const [detailsKey, setDetailsKey] = useState<string>('');
+  const [showExpenses, setShowExpenses] = useState(false);
 
   useEffect(() => {
     // Obtener categorías al cargar el componente
@@ -83,10 +85,20 @@ const Menu: React.FC = () => {
   };
 
   const fetchExpenseDetails = async (categoryId: number, year: number, month: number, categoryName: string) => {
+    const key = `${categoryId}-${year}-${month}`;
+    // Si ya se están mostrando los detalles de esta categoría y mes, ocultar
+    if (detailsKey === key) {
+      setDetails(null);
+      setDetailsKey('');
+      setDetailsTitle('');
+      setShowExpenses(true); // Mostrar menú al ocultar detalles
+      return;
+    }
     setLoading(true);
     setError('');
     setDetails(null);
     setDetailsTitle('');
+    setShowExpenses(false); // Ocultar menú al mostrar detalles
     try {
       const token = localStorage.getItem('token');
       const response = await axios.get<ExpenseDetail[]>(
@@ -99,6 +111,7 @@ const Menu: React.FC = () => {
       );
       setDetails(response.data);
       setDetailsTitle(`${categoryName} - ${month}/${year}`);
+      setDetailsKey(key);
     } catch (err: any) {
       setError(err.response?.data?.message || err.message || 'Error fetching expense details');
     } finally {
@@ -163,12 +176,25 @@ const Menu: React.FC = () => {
     }
   };
 
+  const handleToggleExpenses = () => {
+    if (showExpenses) {
+      setShowExpenses(false);
+      setExpenses(null);
+      setDetails(null);
+      setDetailsKey('');
+      setDetailsTitle('');
+    } else {
+      fetchExpenses();
+      setShowExpenses(true);
+    }
+  };
+
   return (
     <div style={{ maxWidth: 800, margin: '40px auto', padding: 24, background: '#fff', borderRadius: 8 }}>
       <h2>Menú Principal</h2>
       <div style={{ display: 'flex', gap: 16, marginBottom: 24 }}>
-        <button onClick={fetchExpenses} style={{ padding: '10px 20px', background: '#007bff', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer' }}>
-          Ver gastos
+        <button onClick={handleToggleExpenses} style={{ padding: '10px 20px', background: '#007bff', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer' }}>
+          {showExpenses ? 'Ocultar gastos' : 'Ver gastos'}
         </button>
         <button onClick={() => setShowCategories((v) => !v)} style={{ padding: '10px 20px', background: '#6c757d', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer' }}>
           {showCategories ? 'Ocultar categorías' : 'Ver categorías'}
@@ -238,7 +264,7 @@ const Menu: React.FC = () => {
       </form>
       {loading && <p>Cargando gastos...</p>}
       {error && <div style={{ color: '#dc3545', background: '#f8d7da', border: '1px solid #f5c2c7', padding: 8, borderRadius: 4 }}>{error}</div>}
-      {expenses && (
+      {showExpenses && expenses && (
         <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: 16 }}>
           <thead>
             <tr>
@@ -275,6 +301,9 @@ const Menu: React.FC = () => {
       {details && (
         <div style={{ marginTop: 32 }}>
           <h3>Detalles de gastos: {detailsTitle}</h3>
+          <button onClick={() => { setDetails(null); setDetailsKey(''); setDetailsTitle(''); setShowExpenses(true); }} style={{ marginBottom: 12, padding: '6px 12px', background: '#6c757d', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer' }}>
+            Ocultar detalles
+          </button>
           <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: 8 }}>
             <thead>
               <tr>
