@@ -7,7 +7,6 @@ const api = axios.create({
   baseURL: API_URL,
 });
 
-// Add token to requests if it exists
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem('token');
   if (token) {
@@ -15,6 +14,24 @@ api.interceptors.request.use((config) => {
   }
   return config;
 });
+
+
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response && error.response.status === 401) {
+      localStorage.removeItem('token');
+      localStorage.removeItem('email');
+      if (window.location.pathname !== '/login') {
+        alert('Sesión inválida, te estamos redirigiendo para volver a iniciar sesión');
+        window.location.replace('/login');
+        setTimeout(() => window.location.reload(), 100); // Forzar reload tras redirección
+        return new Promise(() => {});
+      }
+    }
+    return Promise.reject(error);
+  }
+);
 
 export const authService = {
   register: async (email: string, password: string): Promise<AuthResponse> => {

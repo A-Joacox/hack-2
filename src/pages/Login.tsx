@@ -36,105 +36,43 @@ const Login: React.FC = () => {
   };
 
   return (
-    <div className="container">
-      <div className="form-container">
-        <h1>Ahorrista</h1>
-        <form onSubmit={handleSubmit}>
-          <div className="form-group">
-            <label htmlFor="email">Email</label>
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-base-200 to-base-100">
+      <div className="w-full max-w-md p-8 bg-white rounded-2xl shadow-2xl border border-base-300">
+        <h1 className="text-4xl font-extrabold text-center mb-8 text-primary">Ahorrista</h1>
+        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+          <div>
+            <label htmlFor="email" className="block mb-1 font-semibold text-blue-700">Email</label>
             <input
               type="email"
               id="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
+              className="input input-bordered w-full"
+              autoFocus
             />
           </div>
-          <div className="form-group">
-            <label htmlFor="password">Password</label>
+          <div>
+            <label htmlFor="password" className="block mb-1 font-semibold text-blue-700">Contraseña</label>
             <input
               type="password"
               id="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
+              className="input input-bordered w-full"
             />
           </div>
-          {error && <div className="error-message">{error}</div>}
-          <button type="submit" disabled={loading}>
-            {loading ? 'Logging in...' : 'Login'}
+          {error && <div className="alert alert-error py-2"><span>{error}</span></div>}
+          <button type="submit" disabled={loading} className="btn btn-primary btn-lg w-full mt-2">
+            {loading ? 'Ingresando...' : 'Ingresar'}
           </button>
         </form>
-        <p>
-          Don't have an account?{' '}
-          <RouterLink to="/register">Register here</RouterLink>
+        <p className="text-center mt-6 text-blue-700">
+          ¿No tienes cuenta?{' '}
+          <RouterLink to="/register" className="link link-primary">Regístrate aquí</RouterLink>
         </p>
       </div>
-      <style>{`
-        .container {
-          display: flex;
-          justify-content: center;
-          align-items: center;
-          min-height: 100vh;
-          padding: 20px;
-        }
-        .form-container {
-          width: 100%;
-          max-width: 400px;
-          padding: 20px;
-          border: 1px solid #ccc;
-          border-radius: 8px;
-          box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-        }
-        h1 {
-          text-align: center;
-          margin-bottom: 20px;
-        }
-        .form-group {
-          margin-bottom: 15px;
-        }
-        label {
-          display: block;
-          margin-bottom: 5px;
-        }
-        input {
-          width: 100%;
-          padding: 8px;
-          border: 1px solid #ccc;
-          border-radius: 4px;
-        }
-        button {
-          width: 100%;
-          padding: 10px;
-          background-color: #007bff;
-          color: white;
-          border: none;
-          border-radius: 4px;
-          cursor: pointer;
-        }
-        button:disabled {
-          background-color: #ccc;
-        }
-        p {
-          text-align: center;
-          margin-top: 15px;
-        }
-        a {
-          color: #007bff;
-          text-decoration: none;
-        }
-        a:hover {
-          text-decoration: underline;
-        }
-        .error-message {
-          color: #dc3545;
-          background: #f8d7da;
-          border: 1px solid #f5c2c7;
-          padding: 8px;
-          border-radius: 4px;
-          margin-bottom: 8px;
-        }
-      `}</style>
     </div>
   );
 };
