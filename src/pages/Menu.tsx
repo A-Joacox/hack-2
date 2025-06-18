@@ -48,6 +48,7 @@ const Menu: React.FC = () => {
     month: '',
     amount: '',
     amountOp: 'eq',
+    id: '',
   });
   const [filteredExpenses, setFilteredExpenses] = React.useState<ExpenseSummary[] | null>(null);
   const [showFilters, setShowFilters] = React.useState(false);
@@ -87,6 +88,10 @@ const Menu: React.FC = () => {
           headers: {
             Authorization: `Bearer ${token}`,
           },
+          params: {
+            year: Number(filter.year) || new Date().getFullYear(),
+            month: Number(filter.month) || new Date().getMonth() + 1,
+          },
         }
       );
       setExpenses(response.data);
@@ -97,7 +102,9 @@ const Menu: React.FC = () => {
     }
   };
 
-  const fetchExpenseDetails = async (categoryId: number, year: number, month: number, categoryName: string) => {
+  const fetchExpenseDetails = async (categoryId: number, year: number | string, month: number | string, categoryName: string) => {
+    year = Number(year);
+    month = Number(month);
     if (
       typeof categoryId !== 'number' ||
       typeof year !== 'number' ||
@@ -159,10 +166,13 @@ const Menu: React.FC = () => {
         return;
       }
       const body = {
-        category: { id: selectedCategory.id, name: selectedCategory.name },
+        category: {
+          id: selectedCategory.id,
+          name: selectedCategory.name
+        },
         year: Number(form.year),
         month: Number(form.month),
-        amount: Number(form.amount),
+        amount: Number(form.amount)
       };
       await axios.post('http://198.211.105.95:8080/expenses', body, {
         headers: {
@@ -192,7 +202,14 @@ const Menu: React.FC = () => {
           Authorization: `Bearer ${token}`,
         },
       });
-      fetchExpenses();
+      if (details && details.length > 0 && detailsKey) {
+        const [categoryId, year, month] = detailsKey.split('-').map(Number);
+        if (!isNaN(categoryId) && !isNaN(year) && !isNaN(month)) {
+          await fetchExpenseDetails(categoryId, year, month, details[0]?.category?.name || '');
+        }
+      } else {
+        fetchExpenses();
+      }
     } catch (err: any) {
       setError(err.response?.data?.message || err.message || 'Error deleting expense');
       alert(err.response?.data?.message || err.message || 'Error deleting expense');
@@ -211,6 +228,11 @@ const Menu: React.FC = () => {
   const applyFilters = () => {
     if (!expenses) return;
     let result = [...expenses];
+    if (filter.id) {
+      result = result.filter(e => String(e.id) === String(filter.id));
+      setFilteredExpenses(result);
+      return;
+    }
     if (filter.categoryId) {
       result = result.filter(e => (e.category || e.expenseCategory)?.id === Number(filter.categoryId));
     }
@@ -234,7 +256,7 @@ const Menu: React.FC = () => {
   };
 
   const clearFilters = () => {
-    setFilter({ categoryId: '', year: '', month: '', amount: '', amountOp: 'eq' });
+    setFilter({ categoryId: '', year: '', month: '', amount: '', amountOp: 'eq', id: '' });
     setFilteredExpenses(null);
   };
 
@@ -248,6 +270,52 @@ const Menu: React.FC = () => {
     } else {
       fetchExpenses();
       setShowExpenses(true);
+    }
+  };
+
+  const handleDeleteAllExpenses = async (categoryId: number, year: number, month: number, categoryName: string) => {
+    if (!categoryId || !year || !month || !categoryName) {
+      setError('Parámetros inválidos para borrar gastos');
+      return;
+    }
+    
+    if (!window.confirm(`¿Seguro que quieres borrar TODOS los gastos de la categoría "${categoryName}" para ${month}/${year}? Esta acción no se puede deshacer.`)) {
+      return;
+    }
+    setLoading(true);
+    setError('');
+    try {
+      const token = localStorage.getItem('token');
+      const response = await axios.get<ExpenseDetail[]>(
+        `http://198.211.105.95:8080/expenses/detail?year=${year}&month=${month}&categoryId=${categoryId}`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+      const details = response.data;
+      if (details.length === 0) {
+        setError('No hay gastos para borrar en este grupo.');
+        setLoading(false);
+        return;
+      }
+      for (const d of details) {
+        await axios.delete(`http://198.211.105.95:8080/expenses/${d.id}`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+      }
+      fetchExpenses();
+      setDetails(null);
+      setDetailsKey('');
+      setDetailsTitle('');
+      setShowExpenses(true);
+    } catch (err: any) {
+      setError(err.response?.data?.message || err.message || 'Error borrando gastos');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -270,7 +338,21 @@ const Menu: React.FC = () => {
         {showFilters && (
           <div className="mb-8 p-6 bg-base-200 rounded-xl border border-base-300 text-black">
             <h3 className="text-xl font-semibold mb-4 text-accent">Filtrar Gastos</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+              <div className="form-control">
+                <label className="label">
+                  <span className="label-text font-semibold">ID</span>
+                </label>
+                <input
+                  type="number"
+                  name="id"
+                  value={filter.id}
+                  onChange={handleFilterChange}
+                  placeholder="ID de gasto"
+                  className="input input-bordered w-full text-gray-300 placeholder-gray-300"
+                  min="1"
+                />
+              </div>
               <div className="form-control">
                 <label className="label">
                   <span className="label-text font-semibold">Categoría</span>
@@ -287,7 +369,6 @@ const Menu: React.FC = () => {
                   ))}
                 </select>
               </div>
-
               <div className="form-control">
                 <label className="label">
                   <span className="label-text font-semibold">Año</span>
@@ -303,7 +384,6 @@ const Menu: React.FC = () => {
                   max="2100"
                 />
               </div>
-
               <div className="form-control">
                 <label className="label">
                   <span className="label-text font-semibold">Mes</span>
@@ -322,7 +402,6 @@ const Menu: React.FC = () => {
                   ))}
                 </select>
               </div>
-
               <div className="form-control">
                 <label className="label">
                   <span className="label-text font-semibold">Monto</span>
@@ -351,7 +430,6 @@ const Menu: React.FC = () => {
                 </div>
               </div>
             </div>
-
             <div className="flex justify-end gap-2 mt-4">
               <button onClick={clearFilters} className="btn btn-outline btn-error">
                 Limpiar filtros
@@ -460,17 +538,23 @@ const Menu: React.FC = () => {
                   <tbody>
                     {(filteredExpenses ?? expenses).map((exp, idx) => {
                       const cat = exp.category || exp.expenseCategory;
+                      if (!cat) return null;
                       return (
                         <tr key={exp.id} className={idx % 2 === 1 ? 'bg-white' : ''}>
                           <td>{exp.id}</td>
-                          <td>{cat?.name}</td>
+                          <td>{cat.name}</td>
                           <td>{exp.year}</td>
                           <td>{exp.month}</td>
                           <td><span className="font-bold text-success">S/ {exp.amount.toFixed(2)}</span></td>
                           <td>
                             <div className="flex gap-2">
-                              <button className="btn btn-xs btn-error" onClick={() => handleDeleteExpense(exp.id)}>Borrar</button>
-                              {cat && typeof cat.id === 'number' && typeof exp.year === 'number' && typeof exp.month === 'number' && !isNaN(exp.year) && !isNaN(exp.month) && (
+                              <button
+                                className="btn btn-xs btn-error"
+                                onClick={() => handleDeleteAllExpenses(cat.id, exp.year, exp.month, cat.name)}
+                              >
+                                Borrar
+                              </button>
+                              {typeof cat.id === 'number' && typeof exp.year === 'number' && typeof exp.month === 'number' && !isNaN(exp.year) && !isNaN(exp.month) && (
                                 <button
                                   className="btn btn-xs btn-info"
                                   onClick={() => fetchExpenseDetails(cat.id, exp.year, exp.month, cat.name)}
@@ -501,22 +585,30 @@ const Menu: React.FC = () => {
                 <thead>
                   <tr>
                     <th>ID</th>
-                    <th>Descripción</th>
                     <th>Monto</th>
                     <th>Fecha</th>
                     <th>Categoría</th>
+                    <th>Acciones</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {details.length === 0 ? (
+                  {(!Array.isArray(details) || details.length === 0) ? (
                     <tr><td colSpan={5} className="text-center text-base-content/60">No hay detalles para mostrar.</td></tr>
-                  ) : details.map((d) => (
+                  ) : details.filter(Boolean).map((d) => (
                     <tr key={d.id}>
                       <td>{d.id}</td>
-                      <td>{d.description || '-'}</td>
-                      <td><span className="font-bold text-success">S/ {d.amount.toFixed(2)}</span></td>
+                      <td><span className="font-bold text-success">S/ {d.amount?.toFixed(2) ?? '-'}</span></td>
                       <td>{d.date ? new Date(d.date).toLocaleDateString() : '-'}</td>
                       <td>{d.category?.name || '-'}</td>
+                      <td>
+                        <button
+                          className="btn btn-xs btn-error"
+                          onClick={() => d.id && handleDeleteExpense(d.id)}
+                          disabled={!d.id}
+                        >
+                          Borrar
+                        </button>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
